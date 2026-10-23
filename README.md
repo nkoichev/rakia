@@ -3,6 +3,6 @@
 Една HTML страница: времева графика на етапите на домашната гроздова ракия (бране → ферментация → казан → отлежаване)
 с указания, отметки, дневник на измерванията (Brix / SG / °C / pH) и калкулатори.
 
-Данните се пазят онлайн: Cloudflare Worker `rakia-api` (папка `worker/`) + KV, достъп с код (secret `RAKIA_KEY`); localStorage е само кеш. Линк с код: `…/rakia/#k=<код>`.
+Данните се пазят онлайн, без код: Cloudflare Worker `rakia-api` (папка `worker/`) + KV – ключ `state` и копие за всеки ден `day:YYYY-MM-DD` (пази се 1 година); localStorage е само кеш.
 
 Хостинг: GitHub Pages от `main` / root.
