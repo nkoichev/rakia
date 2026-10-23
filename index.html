@@ -80,6 +80,8 @@ svg text { fill: var(--muted); font-size: 11px; }
 .f label, .kpi .l { display: flex; align-items: center; gap: 4px; }
 .lt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .info { flex: none; cursor: pointer; color: var(--accent); font-size: .95em; line-height: 1; user-select: none; }
+#flash { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 11; background: var(--done);
+  color: #fff; padding: 6px 14px; border-radius: 999px; font-size: .85rem; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
 #tip { position: fixed; z-index: 10; max-width: min(340px, calc(100vw - 16px)); background: var(--card); color: var(--text);
   border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: .85rem; line-height: 1.45;
   box-shadow: 0 8px 24px rgba(0,0,0,.18); }
@@ -93,6 +95,7 @@ svg text { fill: var(--muted); font-size: 11px; }
 <p class="muted">Данните се пазят само в този браузър. За друго устройство: Настройки → Изтегли копие / Зареди копие.</p>
 </main>
 <div id="tip" hidden></div>
+<div id="flash" hidden></div>
 <script>
 const STAGES = [
  {
@@ -242,9 +245,20 @@ function load() {
   try { return Object.assign(structuredClone(DEFAULT), JSON.parse(localStorage.getItem(KEY)) || {}); }
   catch (e) { return structuredClone(DEFAULT); }
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { alert("Неуспешен запис: " + e); } }
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); flash("✓ Запазено"); }
+  catch (e) { alert("Неуспешен запис: " + e); }
+}
+let flashTimer;
+function flash(text) {
+  const el = document.getElementById("flash");
+  el.textContent = text; el.hidden = false;
+  clearTimeout(flashTimer); flashTimer = setTimeout(() => el.hidden = true, 1500);
+}
+// The stage opened under the timeline is remembered, so a reload shows the same checklist.
+function pick(id) { picked = id; try { localStorage.setItem(KEY + "_pick", id); } catch (e) {} render(); }
 let S = load();
-let tab = "Графика", picked = null;
+let tab = "Графика", picked = (() => { try { return localStorage.getItem(KEY + "_pick"); } catch (e) { return null; } })();
 
 // ---------- dates (ISO strings, UTC midnight so no timezone shifts)
 const D = iso => new Date(iso + "T00:00:00Z");
@@ -349,12 +363,12 @@ function viewTimeline() {
 
   const order = { "Закъснява": 0, "Сега": 1, "Предстои": 2, "Готово": 3 };
   const def = [...rows].sort((p, q) => order[p.status] - order[q.status] || p.start - q.start)[0].s.id;
-  const sel = picked || def;
+  const sel = rows.some(x => x.s.id === picked) ? picked : def;
   h += `<div class="card"><div class="legend">${Object.entries(ST).map(([k, c]) => `<span><i class="st-${c}"></i>${k}</span>`).join("")}
     <span class="muted">┊ линии: бране · край на ферментацията · казан (пунктир = по план) · ☑ 1/4 = отметнати задачи от етапа (клик върху етапа)</span></div><div class="tl">`;
   rows.forEach(r => {
     const left = pct(r.start), w = Math.max(pct(add(r.end, 1)) - left, 0.6), n = days(r.start, r.end) + 1;
-    h += `<div class="tl-row ${r.s.id === sel ? "sel" : ""}" onclick="picked='${r.s.id}';render()">
+    h += `<div class="tl-row ${r.s.id === sel ? "sel" : ""}" onclick="pick('${r.s.id}')">
       <div class="tl-name" title="${esc(r.s.name)}">${r.s.icon} ${esc(r.s.name)}</div>
       <div class="track">${overlays}<div class="bar st-${ST[r.status]} ${n <= 3 ? "short" : ""}" style="left:${left}%;width:${w}%"
         title="${fmt(r.start)} – ${fmtY(r.end)} · ден ${r.day0}–${r.day1}"><span>${barLabel(r)}</span></div></div></div>`;
