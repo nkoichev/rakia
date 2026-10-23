@@ -292,8 +292,8 @@ function plan() {
 }
 function barLabel(r) {
   if (r.status === "Готово") return "✓ готово";
-  if (r.status === "Закъснява") return `${days(r.end, TODAY)} д закъснение · ${r.nDone}/${r.s.checks.length}`;
-  if (r.status === "Сега") { const l = days(TODAY, r.end); return `${r.nDone}/${r.s.checks.length} · ` + (l ? `още ${l} д` : "днес край"); }
+  if (r.status === "Закъснява") return `${days(r.end, TODAY)} д закъснение · ☑ ${r.nDone}/${r.s.checks.length} отметки`;
+  if (r.status === "Сега") { const l = days(TODAY, r.end); return `☑ ${r.nDone}/${r.s.checks.length} отметки · ` + (l ? `още ${l} д` : "днес край"); }
   return `след ${days(TODAY, r.start)} д`;
 }
 
@@ -351,7 +351,7 @@ function viewTimeline() {
   const def = [...rows].sort((p, q) => order[p.status] - order[q.status] || p.start - q.start)[0].s.id;
   const sel = picked || def;
   h += `<div class="card"><div class="legend">${Object.entries(ST).map(([k, c]) => `<span><i class="st-${c}"></i>${k}</span>`).join("")}
-    <span class="muted">┊ линии: бране · край на ферментацията · казан (пунктир = по план)</span></div><div class="tl">`;
+    <span class="muted">┊ линии: бране · край на ферментацията · казан (пунктир = по план) · ☑ 1/4 = отметнати задачи от етапа (клик върху етапа)</span></div><div class="tl">`;
   rows.forEach(r => {
     const left = pct(r.start), w = Math.max(pct(add(r.end, 1)) - left, 0.6), n = days(r.start, r.end) + 1;
     h += `<div class="tl-row ${r.s.id === sel ? "sel" : ""}" onclick="picked='${r.s.id}';render()">
