@@ -61,7 +61,6 @@ ul { padding-left: 20px; margin: 4px 0 10px; } li { margin-bottom: 4px; }
 label.chk { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0; cursor: pointer; }
 /* forms */
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-items: end; }
-.f label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
 .f label { display: block; font-size: .8rem; color: var(--muted); }
 input, select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px;
@@ -78,6 +77,12 @@ th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--line); }
 .msg.ok { background: rgba(34,160,107,.15); }
 .calc .out { margin-top: 8px; }
 svg text { fill: var(--muted); font-size: 11px; }
+.f label, .kpi .l { display: flex; align-items: center; gap: 4px; }
+.lt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.info { flex: none; cursor: pointer; color: var(--accent); font-size: .95em; line-height: 1; user-select: none; }
+#tip { position: fixed; z-index: 10; max-width: min(340px, calc(100vw - 16px)); background: var(--card); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: .85rem; line-height: 1.45;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18); }
 </style>
 </head>
 <body>
@@ -87,6 +92,7 @@ svg text { fill: var(--muted); font-size: 11px; }
 <div id="view"></div>
 <p class="muted">Данните се пазят само в този браузър. За друго устройство: Настройки → Изтегли копие / Зареди копие.</p>
 </main>
+<div id="tip" hidden></div>
 <script>
 const STAGES = [
  {
@@ -313,6 +319,7 @@ function render() {
   const v = document.getElementById("view");
   v.innerHTML = tab === "Измервания" ? viewLog() : tab === "Калкулатори" ? viewCalc() : tab === "Настройки" ? viewSettings() : viewTimeline();
   if (tab === "Калкулатори") calc();
+  addTips();
 }
 
 function viewTimeline() {
@@ -501,6 +508,60 @@ function importJson(file) {
   file.text().then(t => { S = Object.assign(structuredClone(DEFAULT), JSON.parse(t)); save(); render(); })
     .catch(e => alert("Невалиден файл: " + e));
 }
+// ---------- ⓘ info pop-ups (label text -> explanation)
+const TIPS = {
+  "Brix °Bx": "Захарност на сока в градуси Брикс (°Bx) = грама захар в 100 г сок. Мери се с рефрактометър: капка прецеден сок върху стъклото, гледа се срещу светлина. Нормално за грозде 18–24 °Bx. След началото на ферментацията рефрактометърът показва завишено заради алкохола (в края ~6–8 °Bx) – тогава е по-точен ареометърът (SG).",
+  "SG": "Относителна плътност – колко е по-тежък сокът от водата. Мери се с ареометър (захаромер – плаваща стъклена тръбичка) в цилиндър с прецеден сок, отчита се на нивото на течността. Начало ~1,075–1,100; край на ферментацията 0,990–1,000. Ако скалата е в °Oechsle: SG = 1 + Oe/1000 (85 °Oe = 1,085).",
+  "Темп. °C": "Температурата в средата на масата (джибрите), не във въздуха – при бурна ферментация масата е с 3–8 °C по-топла от помещението. Идеално 15–22 °C; над 25 °C – охлаждане; под 12 °C ферментацията почти спира.",
+  "pH": "Киселинност – с pH лентички или pH-метър. За грозде 3,2–3,5 е добре; над 3,6 расте рискът от бактерии (~1 g/l винена киселина сваля pH с ~0,1). Не е задължително.",
+  "Бележка": "Свободен текст: миризма, вкус, разбъркване на шапката, добавена захар/дрожди, затваряне с водна тапа…",
+  "Дата": "Денят на замера. Мерете веднъж дневно, по едно и също време.",
+  "Ден от брането": "Колко дни са минали от брането (ден 0 – датата в Настройки).",
+  "Етап сега": "Етапът, който тече днес. „+N паралелно“ = още етапи в същия период (напр. запазване на казан).",
+  "Начален Brix": "Първият записан Brix – захарността преди ферментацията. Под него е потенциалният алкохол в джибрите (~17 g/l захар дават 1 % vol).",
+  "Последна плътност": "Последната плътност – измерена с ареометър или изчислена от Brix (колона „SG (изч.)“). Ферментацията е свършила, когато е ≤ 1,000 и не се променя 3 дни.",
+  "Очаквана ракия": "Приблизителен добив при 42 % vol: ~70 % от теглото на гроздето е течност, алкохолът е от началния Brix, ~85 % се извлича в казана.",
+  "До казана": "Дни до варенето – запазената дата или, ако няма такава, датата по план.",
+  "Бране (ден 0)": "Денят, в който е набрано и смачкано гроздето. От него се броят всички етапи.",
+  "Край на ферментацията": "Денят, в който плътността е спряла ≤ 1,000. Празно = по план (18 дни след брането). Въведена дата премества съхранението, казана и следващите етапи.",
+  "Казан (запазена дата)": "Датата, за която сте запазили казана. Празно = по план (7 дни след края на ферментацията).",
+  "Грозде, кг": "Теглото на набраното грозде – за очаквания добив и проверката на съдовете.",
+  "Обем на съдовете, л": "Общият обем на съдовете за ферментация. Смачканото грозде е ~0,85 л/кг и трябва да пълни до 80 % – шапката се вдига.",
+  "Сорт": "Сортът на гроздето – показва се в заглавието.",
+  "Градус на ракията, %": "Крепостта, до която ще разредите готовата ракия – обикновено 40–45 % vol.",
+  "Сок в съда, л": "Течността в джибрите – ~0,7 л на кг ронено грозде. Захарта се смята спрямо нея.",
+  "Brix сега": "Измерената захарност преди ферментацията.",
+  "Желан Brix": "Захарността, до която искате да стигнете. 22 °Bx ≈ 11,5 % vol; над ~24 °Bx дрождите се затрудняват.",
+  "Ракия, л": "Количеството ракия, която ще разреждате.",
+  "Градус сега, %": "Крепостта сега, измерена със спиртомер при 20 °C.",
+  "Желан градус, %": "Крепостта след разреждане – обикновено 40–45 % vol.",
+  "Показание, %": "Каквото показва спиртомерът (стъклен ареометър за алкохол), потопен в ракията.",
+  "Температура, °C": "Температурата на ракията в момента на мерене. Спиртомерът е калибриран за 20 °C."
+};
+function addTips() {
+  document.querySelectorAll(".f label, .kpi .l").forEach(el => {
+    const text = el.textContent.trim();
+    if (!TIPS[text]) return;
+    el.innerHTML = `<span class="lt">${esc(text)}</span><span class="info" role="button" tabindex="0" aria-label="Информация">ⓘ</span>`;
+    el.querySelector(".info").dataset.tip = TIPS[text];
+  });
+}
+function showTip(icon) {
+  const tip = document.getElementById("tip"), r = icon.getBoundingClientRect();
+  tip.textContent = icon.dataset.tip; tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(Math.max(r.left - 12, 8), innerWidth - w - 8) + "px";
+  tip.style.top = (r.bottom + 6 + h > innerHeight ? r.top - h - 6 : r.bottom + 6) + "px";
+}
+document.addEventListener("click", e => {
+  const icon = e.target.closest(".info");
+  if (icon) { e.preventDefault(); showTip(icon); } else if (!e.target.closest("#tip")) document.getElementById("tip").hidden = true;
+});
+document.addEventListener("keydown", e => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("info")) { e.preventDefault(); showTip(e.target); }
+  if (e.key === "Escape") document.getElementById("tip").hidden = true;
+});
+addEventListener("scroll", () => document.getElementById("tip").hidden = true, { passive: true });
 render();
 </script>
 </body>
