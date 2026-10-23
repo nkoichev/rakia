@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Домашна ракия</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍇</text></svg>">
+<style>
+:root {
+  --bg: #f6f5f2; --card: #ffffff; --text: #1f2328; --muted: #6b7280; --line: #e3e1dc;
+  --accent: #7c3aed; --late: #e5484d; --now: #3b82f6; --next: #a0aec0; --done: #22a06b;
+  --today: rgba(229,72,77,.18); --weekend: rgba(128,128,128,.07);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15161a; --card: #1f2127; --text: #e8e8ea; --muted: #9aa0aa; --line: #33363e;
+    --accent: #a78bfa; --today: rgba(229,72,77,.28); --weekend: rgba(255,255,255,.04);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.6rem; margin: 4px 0 12px; }
+h3 { margin: 0 0 6px; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.tabs button { border: 1px solid var(--line); background: var(--card); color: var(--text);
+  padding: 7px 14px; border-radius: 999px; cursor: pointer; font: inherit; }
+.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.kpi .l { color: var(--muted); font-size: .8rem; }
+.kpi .v { font-size: 1.3rem; font-weight: 700; }
+.kpi .s { color: var(--muted); font-size: .8rem; }
+.muted { color: var(--muted); font-size: .85rem; }
+/* timeline */
+.tl { position: relative; }
+.tl-row { display: grid; grid-template-columns: minmax(120px, 230px) 1fr; align-items: center; gap: 8px;
+  cursor: pointer; padding: 3px 0; border-radius: 6px; }
+.tl-row:hover, .tl-row.sel { background: rgba(124,58,237,.08); }
+.tl-name { font-size: .88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track { position: relative; height: 26px; }
+.bar { position: absolute; top: 2px; height: 22px; border-radius: 5px; color: #fff; font-size: .75rem;
+  padding: 0 6px; display: flex; align-items: center; white-space: nowrap; overflow: visible; min-width: 4px; }
+.bar span { overflow: hidden; text-overflow: ellipsis; }
+.bar.short span { position: absolute; left: calc(100% + 4px); color: var(--text); }
+.st-late { background: var(--late); } .st-now { background: var(--now); }
+.st-next { background: var(--next); } .st-done { background: var(--done); }
+.overlay { position: absolute; top: 0; bottom: 0; pointer-events: none; }
+.axis { display: grid; grid-template-columns: minmax(120px, 230px) 1fr; gap: 8px; margin-top: 4px; }
+.axis .ticks { position: relative; height: 18px; font-size: .72rem; color: var(--muted); }
+.axis .ticks span { position: absolute; transform: translateX(-50%); }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: .8rem; margin-bottom: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+/* stage detail */
+.cols { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } .tl-row, .axis { grid-template-columns: 110px 1fr; } }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 999px; color: #fff; font-size: .78rem; }
+ul { padding-left: 20px; margin: 4px 0 10px; } li { margin-bottom: 4px; }
+label.chk { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0; cursor: pointer; }
+/* forms */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.f label { display: block; font-size: .8rem; color: var(--muted); }
+input, select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg); color: var(--text); font: inherit; }
+input[type=checkbox] { width: auto; }
+button.btn { border: 0; background: var(--accent); color: #fff; padding: 8px 14px; border-radius: 8px;
+  cursor: pointer; font: inherit; }
+button.btn.sec { background: transparent; color: var(--text); border: 1px solid var(--line); }
+table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--line); }
+.tablewrap { overflow-x: auto; }
+.msg { padding: 8px 12px; border-radius: 8px; margin: 8px 0; }
+.msg.err { background: rgba(229,72,77,.15); } .msg.warn { background: rgba(245,158,11,.18); }
+.msg.ok { background: rgba(34,160,107,.15); }
+.calc .out { margin-top: 8px; }
+svg text { fill: var(--muted); font-size: 11px; }
+</style>
+</head>
+<body>
+<main>
+<h1 id="title">🍇 Домашна ракия</h1>
+<div class="tabs" id="tabs"></div>
+<div id="view"></div>
+<p class="muted">Данните се пазят само в този браузър. За друго устройство: Настройки → Изтегли копие / Зареди копие.</p>
+</main>
+<script>
+const STAGES = [
+ {
+  "id": "crush",
+  "name": "1. Ронене, мачкане, пълнене",
+  "icon": "🍇",
+  "anchor": "harvest",
+  "start": 0,
+  "end": 1,
+  "checks": [
+   "Грозде без гнили зърна",
+   "Чепките са отделени",
+   "Съдът е пълен до 75–80 %",
+   "Първи замер Brix/pH записан"
+  ],
+  "do": "<ul><li>Изхвърлете <b>гнилите и плесенясали</b> зърна – гнилото дава повече метанол и неприятни миризми.</li><li><b>Ронете</b> (махнете чепките) – чепките носят горчивина, танини и повече метанол.</li><li>Смачкайте зърната, без да трошите семките, и изсипете джибрите в <b>чисти</b> съдове за храни (пластмаса за храни, неръждавейка, бъчва). Никакъв метал освен неръждавейка.</li><li>Пълнете съда <b>до 75–80 %</b> – шапката се вдига и пени.</li><li>Вода не се добавя (само при много гъста маса – до 10 %, тя разрежда аромата).</li></ul>",
+  "watch": "<ul><li>Първи замер на <b>захарността</b> (рефрактометър / захаромер) – сок от средата на масата, прецеден.</li><li><b>pH</b> (ленти или pH-метър), ако имате.</li><li>Запишете замерите в <b>Измервания</b> – първият Brix е базата за потенциалния алкохол.</li></ul>"
+ },
+ {
+  "id": "must",
+  "name": "2. Захар, киселинност, дрожди",
+  "icon": "🧪",
+  "anchor": "harvest",
+  "start": 0,
+  "end": 2,
+  "checks": [
+   "Захарността е коригирана (ако е нужно)",
+   "Дрожди добавени",
+   "Ферментацията тръгна"
+  ],
+  "do": "<ul><li><b>Захарност:</b> 18–24 °Bx е нормално за българско грозде. Под 17 °Bx ракията ще е малко. Може да се добави захар (виж <b>Калкулатори</b>) – разтворете я в малко мъст и добавете в началото. Захарта увеличава количеството, но разрежда аромата – строго погледнато вече не е чиста гроздова ракия.</li><li><b>pH:</b> 3,2–3,5 е добре. Над 3,6 (много зряло/повредено грозде) расте рискът от бактерии – ~1 g/l винена киселина сваля pH с около 0,1.</li><li><b>Дрожди:</b> селекционирани винени дрожди (тип EC-1118) 20–30 g/hl. Рехидратация: 15–20 мин в 10× вода при 35–38 °C, после постепенно доливате мъст, докато температурите се изравнят, и чак тогава в съда. Дивите дрожди са традиция, но тръгват по-бавно и рискът от странични аромати и метанол е по-голям.</li><li><b>Хранителна сол за дрожди</b> (DAP) 20–30 g/hl – по желание, предпазва от миризма на развалени яйца.</li><li><b>Пектолитични ензими</b> – повече сок, но проучванията показват <b>повече метанол</b> в дестилата → за ракия по-добре без.</li><li><b>Сяра (метабисулфит)</b> – не е нужна: серният диоксид минава в дестилата и мирише.</li></ul>",
+  "watch": "<ul><li>Дали ферментацията <b>тръгва</b> до 24–48 ч (мехурчета, шапка, топла маса).</li><li>Ако не тръгне за 2–3 дни – проверете температурата (под 12 °C спира) и добавете дрожди.</li></ul>"
+ },
+ {
+  "id": "kazan",
+  "name": "Запазване на казан",
+  "icon": "📞",
+  "anchor": "harvest",
+  "start": 0,
+  "end": 10,
+  "checks": [
+   "Казанът е запазен",
+   "Датата е въведена в Настройки"
+  ],
+  "do": "<ul><li>Сезонът е натоварен (октомври–декември) – <b>запазете дата 2–3 седмици напред</b>, около очаквания край на ферментацията.</li><li>Само в <b>регистриран казан</b> (обект за дестилация): ракия от <b>собствени плодове</b>, за лична консумация – <b>продажбата е забранена</b>.</li><li><b>Първите 30 л</b> на домакинство годишно – намален акциз (50 % от ставката, около 1,12 € на литър ракия при 40 %); над 30 л – пълна ставка. Поискайте <b>документ за платения акциз</b>.</li><li>Попитайте: обем на казана (колко литра джибри на едно варене), с <b>водна баня</b> ли е (за гъсти джибри), трябват ли ваши съдове/дърва, цена, колко време отнема.</li><li>Въведете датата в <b>Настройки</b> – графиката ще се пренареди спрямо нея.</li></ul>",
+  "watch": "<ul><li>Датата да е <b>до 1–2 седмици след края</b> на ферментацията.</li></ul>"
+ },
+ {
+  "id": "active",
+  "name": "3. Бурна ферментация",
+  "icon": "🫧",
+  "anchor": "harvest",
+  "start": 1,
+  "end": 8,
+  "checks": [
+   "Шапката се разбърква 2–3 пъти дневно",
+   "Ежедневни замери",
+   "Температурата е под 25 °C"
+  ],
+  "do": "<ul><li><b>Температура 15–22 °C</b> е идеална. Над 25–28 °C се губят аромати и дрождите могат да спрат; под 12 °C ферментацията почти спира.</li><li><b>Шапката</b> (джибрите, изплували отгоре) се натиска/разбърква <b>2–3 пъти дневно</b> – иначе засъхва, плесенясва и оцетява.</li><li>Покривайте съда (капак/кърпа) – <b>оцетни мушици</b>.</li><li>⚠️ <b>CO₂:</b> проветрявайте помещението, не се навеждайте дълго над съда, не влизайте в затворено мазе с много съдове без проветряване.</li><li>Мерете Brix/плътност <b>веднъж дневно</b>, по едно и също време.</li></ul>",
+  "watch": "<ul><li><b>Миризма:</b> плодова/дрождева – нормално. <b>Развалени яйца</b> (H₂S) – разбъркайте, аерирайте, хранителна сол. <b>Оцет / лепило</b> – твърде много въздух или топло.</li><li><b>Захарността пада</b> всеки ден (обикновено 1–3 °Bx/ден).</li><li>Температурата в <b>масата</b> (не във въздуха) – тя е с няколко градуса по-висока.</li></ul>"
+ },
+ {
+  "id": "quiet",
+  "name": "4. Тиха ферментация",
+  "icon": "🔒",
+  "anchor": "harvest",
+  "start": 8,
+  "end": "ferment_end",
+  "checks": [
+   "Съдът е затворен с водна тапа",
+   "SG стабилна ≤ 1,000 три дни",
+   "Краят е отбелязан"
+  ],
+  "do": "<ul><li>Когато бурното кипене намалее (рефрактометър ~ 7–9 °Bx), <b>затворете херметично</b> с водна тапа – от тук нататък въздухът е враг (оцет, етилацетат).</li><li>Повече не разбърквайте.</li><li><b>Краят</b> на ферментацията: мехурчетата спират, шапката пада, вкусът е <b>сух</b> (без сладост), <b>плътност ≤ 0,995–1,000</b> три поредни дни без промяна.</li><li>⚠️ Рефрактометърът при алкохол показва лъжливо <b>~ 6–8 °Bx</b> – ползвайте ареометър (захаромер) или корекцията в <b>Измервания</b>.</li><li>Отбележете датата на края в <b>Настройки</b> (или с бутона в Измервания).</li></ul>",
+  "watch": "<ul><li>Плътността (SG) – три поредни еднакви стойности ≤ 1,000.</li><li>Водната тапа – да има вода, да бълбука все по-рядко.</li></ul>"
+ },
+ {
+  "id": "wait",
+  "name": "5. Съхранение до казана",
+  "icon": "⏳",
+  "anchor": "ferment_end",
+  "start": 0,
+  "end": "distill",
+  "checks": [
+   "Съдът е затворен и на хладно",
+   "Транспорт до казана уреден"
+  ],
+  "do": "<ul><li>Варете <b>възможно най-скоро</b> – до 1–2 седмици след края. С времето се образуват оцетна киселина и етилацетат (миризма на лепило) и ракията губи аромат.</li><li>Дръжте <b>затворено</b>, на хладно, без въздух; не отваряйте без нужда.</li><li>Ако чакането е по-дълго – заравнете повърхността, покрийте с фолио плътно върху масата и затворете.</li></ul>",
+  "watch": "<ul><li>Миризма на <b>оцет</b> или бяла ципа отгоре – върху маса без въздух не трябва да се появява.</li></ul>"
+ },
+ {
+  "id": "distill",
+  "name": "6. Изваряване",
+  "icon": "🔥",
+  "anchor": "distill",
+  "start": 0,
+  "end": 0,
+  "checks": [
+   "Главата е отделена",
+   "Сърцевината е събрана",
+   "Опашката е отделена",
+   "Градус и литри записани",
+   "Документ за акциза взет"
+  ],
+  "do": "<ul><li><b>Разбъркайте</b> джибрите при пълнене. Гъсти джибри – с малко вода или в казан с <b>водна баня</b>, иначе загарят (миризма на изгоряло, която не се маха).</li><li>Нагряване <b>бавно</b> – равномерна тънка струя, не на пресекулки.</li><li><b>Първак (глава):</b> първите капки – метанол, ацеталдехид, етилацетат. Отделете около <b>1 % от очакваната ракия</b> (≈ 100–200 мл на 100 л джибри) – мирише на лепило/разтворител. <b>Не се пие.</b></li><li><b>Сърцевина:</b> събирайте, докато <b>струята</b> падне до ~ 40–45 % vol (средно в съда остава 45–55 %).</li><li><b>Опашка (патоки):</b> под ~ 40 % в струята – в отделен съд; мирише на мокър картон/олио. Влиза в следващия казан или в преварата.</li><li><b>Двойна дестилация (превара):</b> първо „мека ракия\" ~ 25–30 % (без отделяне), после повторно варене с отделяне на глава и опашка → по-чиста, по-мека ракия.</li><li>Мерете със <b>спиртомер при 20 °C</b> (корекция в <b>Калкулатори</b>).</li></ul>",
+  "watch": "<ul><li>Градусът на <b>струята</b> (спиртомер в мерителна чаша) – той определя кога спира сърцевината.</li><li>Миризмата при прехода глава → сърце (лепилото изчезва, остава гроздов аромат).</li><li>Количеството – сравнете с очаквания добив в <b>Калкулатори</b>.</li></ul>"
+ },
+ {
+  "id": "dilute",
+  "name": "7. Разреждане",
+  "icon": "💧",
+  "anchor": "distill",
+  "start": 1,
+  "end": 14,
+  "checks": [
+   "Разредена до желания градус",
+   "Филтрирана (ако е мътна)"
+  ],
+  "do": "<ul><li>Оставете ракията да си почине няколко дни, после разреждайте до <b>40–45 %</b>.</li><li>С <b>дестилирана</b> или мека, преварена и изстинала вода. <b>Постепенно</b> – на 2–3 пъти през няколко дни, като водата се налива в ракията и се разбърква.</li><li>Колко вода – виж <b>Калкулатори</b> (смесването свива обема, затова доливайте последните литри след замер).</li><li>Леко <b>помътняване</b> = мастни масла от опашката: изстудете и филтрирайте (кафе филтър / вата).</li></ul>",
+  "watch": "<ul><li>Градусът след всяко доливане (при 20 °C).</li><li>Бистрота и миризма.</li></ul>"
+ },
+ {
+  "id": "age",
+  "name": "8. Отлежаване",
+  "icon": "🥃",
+  "anchor": "distill",
+  "start": 1,
+  "end": 90,
+  "checks": [
+   "Налята в стъкло/буре",
+   "Етикетирана"
+  ],
+  "do": "<ul><li><b>Минимум 2–4 седмици</b> почивка, по-добре <b>3–6 месеца</b> – острите нотки се закръглят.</li><li><b>Стъклени</b> дамаджани/бутилки; пластмаса – не за дълго.</li><li>Първите седмици отваряйте понякога за „дишане\".</li><li><b>Дъбово буре</b> или дъбови стружки → жълта (отлежала) ракия; месеци до години, опитвайте периодично.</li><li>Тъмно, хладно, <b>етикет</b>: дата, градус, литри, сорт.</li></ul>",
+  "watch": "<ul><li>Вкус и аромат на всеки месец.</li><li>При буре – цвят и дали не става твърде танинова.</li></ul>"
+ }
+];
+const PLANNED_FERMENT_DAYS = 18, PLANNED_WAIT_DAYS = 7;
+const SUGAR_PER_ABV = 17, JUICE_PER_KG = 0.70, DISTILL_RECOVERY = 0.85;
+const KEY = "rakia_state_v1";
+const DEFAULT = { harvest: "2026-10-22", grapes_kg: 100, vessel_l: 120, variety: "", double_distill: false,
+  ferment_end: null, distill: null, done: {}, log: [] };
+const ST = { "Закъснява": "late", "Сега": "now", "Предстои": "next", "Готово": "done" };
+
+// ---------- storage
+function load() {
+  try { return Object.assign(structuredClone(DEFAULT), JSON.parse(localStorage.getItem(KEY)) || {}); }
+  catch (e) { return structuredClone(DEFAULT); }
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { alert("Неуспешен запис: " + e); } }
+let S = load();
+let tab = "Графика", picked = null;
+
+// ---------- dates (ISO strings, UTC midnight so no timezone shifts)
+const D = iso => new Date(iso + "T00:00:00Z");
+const iso = d => d.toISOString().slice(0, 10);
+const add = (d, n) => new Date(d.getTime() + n * 864e5);
+const days = (a, b) => Math.round((b - a) / 864e5);
+const fmt = d => d.toISOString().slice(8, 10) + "." + d.toISOString().slice(5, 7);
+const fmtY = d => fmt(d) + "." + d.getUTCFullYear();
+const WD = ["нд", "пн", "вт", "ср", "чт", "пт", "сб"];
+const TODAY = (() => { const n = new Date(); return D(`${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`); })();
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const num = (x, d = 1) => x == null || isNaN(x) ? "—" : Number(x).toFixed(d).replace(".", ",");
+
+// ---------- math
+const potentialAbv = bx => Math.max(bx * 10 - 25, 0) / SUGAR_PER_ABV;
+const brixToSg = bx => 1 + bx / (258.6 - bx / 258.2 * 227.1);
+function refractoSg(b0, b) {  // Terrill cubic: refractometer reading with alcohol present
+  if (b >= b0 - 0.5) return brixToSg(b);
+  return 1 - 0.0044993 * b0 + 0.011774 * b + 0.00027581 * b0 ** 2 - 0.0012717 * b ** 2
+    - 0.00000728 * b0 ** 3 + 0.000063293 * b ** 3;
+}
+function expectedYield(kg, bx, strength = 42) {
+  const juice = kg * JUICE_PER_KG, abv = potentialAbv(bx), pure = juice * abv / 100 * DISTILL_RECOVERY;
+  return { juice, abv, pure, liters: pure / (strength / 100) };
+}
+
+// ---------- plan
+function anchors() {
+  const harvest = D(S.harvest);
+  const ferment_end = S.ferment_end ? D(S.ferment_end) : add(harvest, PLANNED_FERMENT_DAYS);
+  const distill = S.distill ? D(S.distill) : add(ferment_end, PLANNED_WAIT_DAYS);
+  return { harvest, ferment_end, distill };
+}
+function plan() {
+  const a = anchors();
+  return STAGES.map(s => {
+    const start = add(a[s.anchor], s.start);
+    let end = typeof s.end === "string" ? a[s.end] : add(a[s.anchor], s.end);
+    if (s.id === "distill" && S.double_distill) end = add(end, 1);
+    if (end < start) end = start;
+    const nDone = s.checks.filter((_, i) => S.done[`${s.id}|${i}`]).length;
+    const status = nDone === s.checks.length ? "Готово" : TODAY > end ? "Закъснява" : TODAY >= start ? "Сега" : "Предстои";
+    return { s, start, end, status, nDone, day0: days(a.harvest, start), day1: days(a.harvest, end) };
+  });
+}
+function barLabel(r) {
+  if (r.status === "Готово") return "✓ готово";
+  if (r.status === "Закъснява") return `${days(r.end, TODAY)} д закъснение · ${r.nDone}/${r.s.checks.length}`;
+  if (r.status === "Сега") { const l = days(TODAY, r.end); return `${r.nDone}/${r.s.checks.length} · ` + (l ? `още ${l} д` : "днес край"); }
+  return `след ${days(TODAY, r.start)} д`;
+}
+
+// ---------- log
+function logWithSg() {
+  const log = [...S.log].sort((x, y) => x.date.localeCompare(y.date));
+  const b0 = (log.find(r => r.brix != null) || {}).brix;
+  log.forEach(r => r.sg_eff = r.sg != null ? r.sg : (r.brix != null && b0 != null ? refractoSg(b0, r.brix) : null));
+  return { log, b0 };
+}
+function fermentFinished(log) {
+  const byDay = {};
+  log.filter(r => r.sg_eff != null).forEach(r => byDay[r.date] = r.sg_eff);
+  const v = Object.values(byDay).slice(-3);
+  return v.length === 3 && Math.max(...v) - Math.min(...v) <= 0.001 && Math.max(...v) <= 1.000;
+}
+
+// ---------- views
+function render() {
+  document.getElementById("title").textContent = "🍇 Домашна ракия" + (S.variety ? " · " + S.variety : "");
+  document.getElementById("tabs").innerHTML = ["Графика", "Измервания", "Калкулатори", "Настройки"]
+    .map(t => `<button class="${t === tab ? "on" : ""}" onclick="tab='${t}';render()">${t}</button>`).join("");
+  const v = document.getElementById("view");
+  v.innerHTML = tab === "Измервания" ? viewLog() : tab === "Калкулатори" ? viewCalc() : tab === "Настройки" ? viewSettings() : viewTimeline();
+  if (tab === "Калкулатори") calc();
+}
+
+function viewTimeline() {
+  const rows = plan(), a = anchors(), { log, b0 } = logWithSg();
+  const now = rows.filter(r => r.status === "Сега" || r.status === "Закъснява");
+  const lastSg = [...log].reverse().find(r => r.sg_eff != null);
+  const y = b0 != null ? expectedYield(S.grapes_kg, b0) : null;
+  const kpi = (l, v, s) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s || "&nbsp;"}</div></div>`;
+  let h = `<div class="kpis">
+    ${kpi("Ден от брането", days(a.harvest, TODAY))}
+    ${kpi("Етап сега", now.length ? esc(now[0].s.name.replace(/^\d\. /, "")) : "—", now.length > 1 ? `+${now.length - 1} паралелно` : "")}
+    ${kpi("Начален Brix", b0 != null ? num(b0) + " °Bx" : "—", b0 != null ? `≈ ${num(potentialAbv(b0))} % vol` : "")}
+    ${kpi("Последна плътност", lastSg ? num(lastSg.sg_eff, 3) : "—", lastSg ? "край ≤ 1,000" : "")}
+    ${y ? kpi("Очаквана ракия", `≈ ${Math.round(y.liters)} л`, "при 42 % vol")
+        : kpi("До казана", `${days(TODAY, a.distill)} д`, S.distill ? "запазен" : "по план")}
+  </div>`;
+
+  const x0 = add(a.harvest, -2), x1 = add(a.distill, 21), span = days(x0, x1);
+  const pct = d => Math.min(Math.max(days(x0, d) / span * 100, 0), 100);
+  let overlays = "";
+  for (let d = x0; d < x1; d = add(d, 1))
+    if (d.getUTCDay() === 0 || d.getUTCDay() === 6)
+      overlays += `<div class="overlay" style="left:${pct(d)}%;width:${100 / span}%;background:var(--weekend)"></div>`;
+  overlays += `<div class="overlay" style="left:${pct(TODAY)}%;width:${100 / span}%;background:var(--today)"></div>`;
+  [["harvest", true], ["ferment_end", !!S.ferment_end], ["distill", !!S.distill]].forEach(([k, real]) =>
+    overlays += `<div class="overlay" style="left:calc(${pct(a[k])}% + ${50 / span}%);border-left:2px ${real ? "solid" : "dotted"} var(--accent)"></div>`);
+
+  const order = { "Закъснява": 0, "Сега": 1, "Предстои": 2, "Готово": 3 };
+  const def = [...rows].sort((p, q) => order[p.status] - order[q.status] || p.start - q.start)[0].s.id;
+  const sel = picked || def;
+  h += `<div class="card"><div class="legend">${Object.entries(ST).map(([k, c]) => `<span><i class="st-${c}"></i>${k}</span>`).join("")}
+    <span class="muted">┊ линии: бране · край на ферментацията · казан (пунктир = по план)</span></div><div class="tl">`;
+  rows.forEach(r => {
+    const left = pct(r.start), w = Math.max(pct(add(r.end, 1)) - left, 0.6), n = days(r.start, r.end) + 1;
+    h += `<div class="tl-row ${r.s.id === sel ? "sel" : ""}" onclick="picked='${r.s.id}';render()">
+      <div class="tl-name" title="${esc(r.s.name)}">${r.s.icon} ${esc(r.s.name)}</div>
+      <div class="track">${overlays}<div class="bar st-${ST[r.status]} ${n <= 3 ? "short" : ""}" style="left:${left}%;width:${w}%"
+        title="${fmt(r.start)} – ${fmtY(r.end)} · ден ${r.day0}–${r.day1}"><span>${barLabel(r)}</span></div></div></div>`;
+  });
+  let ticks = "";
+  for (let d = a.harvest; d < x1; d = add(d, 7)) ticks += `<span style="left:${pct(d) + 50 / span}%">${fmt(d)}</span>`;
+  ticks += `<span style="left:${pct(TODAY) + 50 / span}%;top:14px;color:var(--late);font-weight:700">ДНЕС</span>`;
+  h += `</div><div class="axis"><div></div><div class="ticks" style="height:32px">${ticks}</div></div>`;
+  if (!S.distill) h += `<p class="muted">По план: ферментация ~${PLANNED_FERMENT_DAYS} дни, казан ~${PLANNED_WAIT_DAYS} дни след края. Въведете реалните дати в Настройки.</p>`;
+  h += `</div>`;
+
+  const r = rows.find(x => x.s.id === sel), s = r.s;
+  h += `<div class="card"><h3>${s.icon} ${esc(s.name)}</h3>
+    <p><span class="badge st-${ST[r.status]}">${r.status}</span> ${WD[r.start.getUTCDay()]} ${fmt(r.start)} – ${WD[r.end.getUTCDay()]} ${fmtY(r.end)} · ден ${r.day0}–${r.day1}</p>
+    <div class="cols"><div><b>Какво се прави</b>${s.do}</div>
+    <div><b>Какво да следим</b>${s.watch}<b>Отметки</b>
+    ${s.checks.map((c, i) => `<label class="chk"><input type="checkbox" ${S.done[`${s.id}|${i}`] ? "checked" : ""}
+      onchange="toggle('${s.id}|${i}',this.checked)">${esc(c)}</label>`).join("")}</div></div></div>`;
+  return h;
+}
+function toggle(k, on) { if (on) S.done[k] = new Date().toISOString(); else delete S.done[k]; save(); render(); }
+
+function viewLog() {
+  const { log, b0 } = logWithSg();
+  let h = `<div class="card"><p class="muted">Мерете веднъж дневно, по едно и също време. <b>Brix</b> – рефрактометър; <b>SG</b> – ареометър
+    в прецеден сок (по-точен след началото); <b>температура</b> – в масата. Без SG плътността се смята от Brix с корекция за алкохола.</p>
+    <div class="grid">
+      <div class="f"><label>Дата</label><input id="l_date" type="date" value="${iso(TODAY)}"></div>
+      <div class="f"><label>Brix °Bx</label><input id="l_brix" type="number" step="0.1" inputmode="decimal"></div>
+      <div class="f"><label>SG</label><input id="l_sg" type="number" step="0.001" inputmode="decimal" placeholder="1.000"></div>
+      <div class="f"><label>Темп. °C</label><input id="l_temp" type="number" step="0.5" inputmode="decimal"></div>
+      <div class="f"><label>pH</label><input id="l_ph" type="number" step="0.05" inputmode="decimal"></div>
+      <div class="f"><label>Бележка</label><input id="l_note"></div>
+    </div><p><button class="btn" onclick="addLog()">＋ Добави замер</button></p></div>`;
+  if (!log.length) return h + `<div class="msg warn">Още няма измервания – добавете първия (дата + Brix).</div>`;
+  h += `<div class="card">${chart(log)}</div>`;
+  const last = log[log.length - 1];
+  if (last.temp > 25) h += `<div class="msg err">Температура ${num(last.temp)} °C – над 25 °C губите аромати; охладете помещението.</div>`;
+  if (last.temp != null && last.temp < 12) h += `<div class="msg warn">Температура ${num(last.temp)} °C – под 12 °C ферментацията почти спира.</div>`;
+  if (last.ph > 3.6) h += `<div class="msg warn">pH ${num(last.ph, 2)} – над 3,6; помислете за винена киселина (~1 g/l ≈ −0,1 pH).</div>`;
+  if (b0 != null && b0 < 17 && log.length <= 2) h += `<div class="msg warn">Начален Brix ${num(b0)} – нисък; виж калкулатора за захар.</div>`;
+  if (fermentFinished(log) && !S.ferment_end) {
+    const endDay = [...log].reverse().find(r => r.sg_eff != null).date;
+    h += `<div class="msg ok">Плътността е стабилна ≤ 1,000 при последните 3 замера – ферментацията изглежда приключила.
+      <button class="btn" onclick="S.ferment_end='${endDay}';save();render()">🔒 Отбележи край (${fmt(D(endDay))})</button></div>`;
+  }
+  h += `<div class="card tablewrap"><table><tr><th>Дата</th><th>Brix</th><th>SG</th><th>SG (изч.)</th><th>°C</th><th>pH</th><th>Бележка</th><th></th></tr>
+    ${[...log].reverse().map(r => `<tr><td>${fmtY(D(r.date))}</td><td>${num(r.brix)}</td><td>${num(r.sg, 3)}</td><td>${num(r.sg_eff, 3)}</td>
+    <td>${num(r.temp)}</td><td>${num(r.ph, 2)}</td><td>${esc(r.note)}</td>
+    <td><button class="btn sec" onclick="delLog('${r.id}')">✕</button></td></tr>`).join("")}</table></div>`;
+  return h;
+}
+function val(id) { const v = document.getElementById(id).value.trim().replace(",", "."); return v === "" ? null : Number(v); }
+function addLog() {
+  const date = document.getElementById("l_date").value;
+  if (!date) return alert("Изберете дата");
+  const r = { id: Math.random().toString(36).slice(2, 10), date, brix: val("l_brix"), sg: val("l_sg"),
+    temp: val("l_temp"), ph: val("l_ph"), note: document.getElementById("l_note").value.trim() || null };
+  if ([r.brix, r.sg, r.temp, r.ph].every(x => x == null) && !r.note) return alert("Въведете поне една стойност");
+  S.log.push(r); save(); render();
+}
+function delLog(id) { if (confirm("Да изтрия ли замера?")) { S.log = S.log.filter(r => r.id !== id); save(); render(); } }
+
+function chart(log) {
+  const W = 700, H = 240, P = { l: 40, r: 48, t: 14, b: 26 };
+  const t0 = D(log[0].date), t1 = D(log[log.length - 1].date), sp = Math.max(days(t0, t1), 1);
+  const X = d => P.l + days(t0, D(d)) / sp * (W - P.l - P.r);
+  const bmax = Math.max(25, ...log.map(r => r.brix || 0));
+  const YB = b => P.t + (1 - b / bmax) * (H - P.t - P.b);
+  const sgs = log.map(r => r.sg_eff).filter(x => x != null), smin = Math.min(0.990, ...sgs), smax = Math.max(1.110, ...sgs);
+  const YS = s => P.t + (1 - (s - smin) / (smax - smin)) * (H - P.t - P.b);
+  const line = (pts, color, dash = "") => pts.length ? `<polyline fill="none" stroke="${color}" stroke-width="2.5" ${dash} points="${pts.join(" ")}"/>` +
+    pts.map(p => `<circle cx="${p.split(",")[0]}" cy="${p.split(",")[1]}" r="3.5" fill="${color}"/>`).join("") : "";
+  let g = `<rect x="${P.l}" y="${YS(1.000)}" width="${W - P.l - P.r}" height="${YS(smin) - YS(1.000)}" fill="rgba(34,160,107,.13)"/>`;
+  for (let b = 0; b <= bmax; b += 5) g += `<text x="${P.l - 6}" y="${YB(b) + 4}" text-anchor="end">${b}</text>`;
+  [smin, 1.000, 1.050, smax].forEach(s => g += `<text x="${W - P.r + 6}" y="${YS(s) + 4}">${s.toFixed(3)}</text>`);
+  log.forEach((r, i) => { if (i === 0 || i === log.length - 1 || log.length < 9) g += `<text x="${X(r.date)}" y="${H - 6}" text-anchor="middle">${fmt(D(r.date))}</text>`; });
+  g += line(log.filter(r => r.brix != null).map(r => `${X(r.date)},${YB(r.brix)}`), "#f59e0b");
+  g += line(log.filter(r => r.sg_eff != null).map(r => `${X(r.date)},${YS(r.sg_eff)}`), "#3b82f6");
+  return `<div class="legend"><span><i style="background:#f59e0b"></i>Brix (ляво)</span><span><i style="background:#3b82f6"></i>Плътност SG (дясно)</span>
+    <span><i style="background:rgba(34,160,107,.4)"></i>зона на край ≤ 1,000</span></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Графика на ферментацията">${g}</svg>`;
+}
+
+function viewCalc() {
+  const { b0 } = logWithSg(), bx = b0 ?? 20;
+  const f = (id, l, v, step) => `<div class="f"><label>${l}</label><input id="${id}" type="number" step="${step}" value="${v}" oninput="calc()" inputmode="decimal"></div>`;
+  return `<div class="grid2">
+  <div class="card calc"><h3>🍇 Потенциален алкохол и добив</h3><div class="grid">
+    ${f("c_kg", "Грозде, кг", S.grapes_kg, 10)}${f("c_bx", "Brix °Bx", bx, 0.5)}${f("c_str", "Градус на ракията, %", 42, 1)}</div><div class="out" id="o_yield"></div></div>
+  <div class="card calc"><h3>🍬 Добавяне на захар</h3><div class="grid">
+    ${f("c_juice", "Сок в съда, л", Math.round(S.grapes_kg * JUICE_PER_KG), 5)}${f("c_bnow", "Brix сега", b0 ?? 17, 0.5)}${f("c_bto", "Желан Brix", Math.max(b0 ?? 17, 22), 0.5)}</div><div class="out" id="o_sugar"></div></div>
+  <div class="card calc"><h3>💧 Разреждане</h3><div class="grid">
+    ${f("c_vol", "Ракия, л", 10, 0.5)}${f("c_from", "Градус сега, %", 55, 0.5)}${f("c_to", "Желан градус, %", 42, 0.5)}</div><div class="out" id="o_dil"></div></div>
+  <div class="card calc"><h3>🌡️ Спиртомер – корекция към 20 °C</h3><div class="grid">
+    ${f("c_rd", "Показание, %", 45, 0.5)}${f("c_tc", "Температура, °C", 20, 0.5)}</div><div class="out" id="o_am"></div></div></div>`;
+}
+function calc() {
+  const g = id => Number(document.getElementById(id).value.replace(",", ".")) || 0;
+  const y = expectedYield(g("c_kg"), g("c_bx"), g("c_str") || 42);
+  document.getElementById("o_yield").innerHTML = `<ul><li>Течност ≈ <b>${Math.round(y.juice)} л</b></li>
+    <li>Алкохол в джибрите ≈ <b>${num(y.abv)} % vol</b></li><li>Чист алкохол ≈ <b>${num(y.pure)} л</b> (85 % извличане)</li>
+    <li>Ракия при ${num(g("c_str"), 0)} % ≈ <b>${num(y.liters)} л</b></li><li>Първак за изхвърляне ≈ <b>${Math.round(y.liters * 10)} мл</b></li></ul>
+    ${y.liters > 30 ? `<p class="muted">Над 30 л на домакинство годишно – пълна акцизна ставка за разликата.</p>` : ""}`;
+  const kg = Math.max(potentialAbv(g("c_bto")) - potentialAbv(g("c_bnow")), 0) * SUGAR_PER_ABV * g("c_juice") / 1000;
+  document.getElementById("o_sugar").innerHTML = `<ul><li>Захар: <b>${num(kg)} кг</b> (≈ 17 g/l за +1 % vol)</li>
+    <li>Алкохол ${num(potentialAbv(g("c_bnow")))} → <b>${num(potentialAbv(g("c_bto")))} % vol</b></li><li>Обемът расте с ≈ ${num(kg * 0.62)} л</li></ul>
+    <p class="muted">Разтворете в малко мъст и добавете в началото на ферментацията. Над ~24 °Bx дрождите се мъчат.</p>`;
+  const w = g("c_to") > 0 && g("c_to") < g("c_from") ? g("c_vol") * (g("c_from") / g("c_to") - 1) : 0;
+  document.getElementById("o_dil").innerHTML = `<ul><li>Вода: <b>${num(w, 2)} л</b> → общо ≈ ${num(g("c_vol") + w)} л</li>
+    <li>Налейте първо ~${num(w * 0.8, 2)} л, разбъркайте, измерете при 20 °C и чак тогава останалото.</li></ul>`;
+  document.getElementById("o_am").innerHTML = `<ul><li>При 20 °C ≈ <b>${num(g("c_rd") - 0.3 * (g("c_tc") - 20))} % vol</b></li></ul>
+    <p class="muted">Груба корекция (~0,3 % vol на °C за 30–60 %). Най-точно – мерете при 20 °C.</p>`;
+}
+
+function viewSettings() {
+  const fill = S.grapes_kg * 0.85 / Math.max(S.vessel_l, 1);
+  return `<div class="card"><p class="muted">Датите местят графиката: щом въведете края на ферментацията или датата на казана, следващите етапи тръгват от тях.</p>
+  <div class="grid">
+    <div class="f"><label>Бране (ден 0)</label><input id="s_harvest" type="date" value="${S.harvest}"></div>
+    <div class="f"><label>Край на ферментацията (празно = по план)</label><input id="s_fend" type="date" value="${S.ferment_end || ""}"></div>
+    <div class="f"><label>Казан – запазена дата (празно = по план)</label><input id="s_dist" type="date" value="${S.distill || ""}"></div>
+    <div class="f"><label>Грозде, кг</label><input id="s_kg" type="number" step="10" value="${S.grapes_kg}"></div>
+    <div class="f"><label>Обем на съдовете, л</label><input id="s_vol" type="number" step="10" value="${S.vessel_l}"></div>
+    <div class="f"><label>Сорт</label><input id="s_var" value="${esc(S.variety)}"></div>
+  </div>
+  <label class="chk"><input id="s_double" type="checkbox" ${S.double_distill ? "checked" : ""}> Двойна дестилация (превара)</label>
+  <p><button class="btn" onclick="saveSettings()">💾 Запази</button></p>
+  ${fill > 0.8 ? `<div class="msg warn">Джибрите (~${Math.round(S.grapes_kg * 0.85)} л) пълнят съдовете на ${Math.round(fill * 100)} % – оставете поне 20 % празно място.</div>` : ""}
+  </div>
+  <div class="card"><h3>Резервно копие / друго устройство</h3>
+  <p><button class="btn sec" onclick="exportJson()">⬇ Изтегли копие</button>
+  <label class="btn sec" style="display:inline-block;cursor:pointer">⬆ Зареди копие<input type="file" accept=".json" hidden onchange="importJson(this.files[0])"></label>
+  <button class="btn sec" onclick="if(confirm('Да изчистя ли всички отметки?')){S.done={};save();render()}">↺ Изчисти отметките</button></p></div>`;
+}
+function saveSettings() {
+  const v = id => document.getElementById(id).value;
+  if (!v("s_harvest")) return alert("Датата на брането е задължителна");
+  Object.assign(S, { harvest: v("s_harvest"), ferment_end: v("s_fend") || null, distill: v("s_dist") || null,
+    grapes_kg: Number(v("s_kg")) || 1, vessel_l: Number(v("s_vol")) || 1, variety: v("s_var").trim(),
+    double_distill: document.getElementById("s_double").checked });
+  save(); render();
+}
+function exportJson() {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], { type: "application/json" }));
+  a.download = `rakia-${iso(TODAY)}.json`; a.click();
+}
+function importJson(file) {
+  if (!file) return;
+  file.text().then(t => { S = Object.assign(structuredClone(DEFAULT), JSON.parse(t)); save(); render(); })
+    .catch(e => alert("Невалиден файл: " + e));
+}
+render();
+</script>
+</body>
+</html>
