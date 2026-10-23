@@ -265,14 +265,16 @@ async function push() {
 async function pull() {
   if (dirty) return push();
   try {
+    // KV reads can lag a write by up to a minute, so the online copy only wins when it is newer
+    // (_ts = time of the last change); an older one would wipe what was just ticked here.
     const remote = await api("GET");
-    if (remote) { S = Object.assign(structuredClone(DEFAULT), remote); cache(); }
-    else await api("PUT", S);  // first visit: the online copy starts from what this browser has
-    lastSync = new Date(); render();
+    if (remote && (remote._ts || 0) > (S._ts || 0)) { S = Object.assign(structuredClone(DEFAULT), remote); cache(); render(); }
+    else if (!remote || (remote._ts || 0) < (S._ts || 0)) await api("PUT", S);
+    lastSync = new Date();
   } catch (e) {}
   syncLine();
 }
-function save() { cache(); push(); }
+function save() { S._ts = Date.now(); cache(); push(); }
 function syncLine() {
   const el = document.getElementById("sync");
   el.textContent = dirty ? "⚠ Има промени, които още не са изпратени онлайн."
