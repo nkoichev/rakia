@@ -60,15 +60,16 @@ h3 { margin: 0 0 6px; }
 ul { padding-left: 20px; margin: 4px 0 10px; } li { margin-bottom: 4px; }
 label.chk { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0; cursor: pointer; }
 /* forms */
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-items: end; }
+.f label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
 .f label { display: block; font-size: .8rem; color: var(--muted); }
 input, select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px;
   background: var(--bg); color: var(--text); font: inherit; }
 input[type=checkbox] { width: auto; }
-button.btn { border: 0; background: var(--accent); color: #fff; padding: 8px 14px; border-radius: 8px;
+.btn { border: 0; background: var(--accent); color: #fff; padding: 8px 14px; border-radius: 8px;
   cursor: pointer; font: inherit; }
-button.btn.sec { background: transparent; color: var(--text); border: 1px solid var(--line); }
+.btn.sec { background: transparent; color: var(--text); border: 1px solid var(--line); }
 table { width: 100%; border-collapse: collapse; font-size: .88rem; }
 th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--line); }
 .tablewrap { overflow-x: auto; }
@@ -464,11 +465,11 @@ function calc() {
 
 function viewSettings() {
   const fill = S.grapes_kg * 0.85 / Math.max(S.vessel_l, 1);
-  return `<div class="card"><p class="muted">Датите местят графиката: щом въведете края на ферментацията или датата на казана, следващите етапи тръгват от тях.</p>
+  return `<div class="card"><p class="muted">Датите местят графиката: щом въведете края на ферментацията или датата на казана, следващите етапи тръгват от тях. Празна дата = по план.</p>
   <div class="grid">
     <div class="f"><label>Бране (ден 0)</label><input id="s_harvest" type="date" value="${S.harvest}"></div>
-    <div class="f"><label>Край на ферментацията (празно = по план)</label><input id="s_fend" type="date" value="${S.ferment_end || ""}"></div>
-    <div class="f"><label>Казан – запазена дата (празно = по план)</label><input id="s_dist" type="date" value="${S.distill || ""}"></div>
+    <div class="f"><label title="празно = по план">Край на ферментацията</label><input id="s_fend" type="date" value="${S.ferment_end || ""}"></div>
+    <div class="f"><label title="празно = по план">Казан (запазена дата)</label><input id="s_dist" type="date" value="${S.distill || ""}"></div>
     <div class="f"><label>Грозде, кг</label><input id="s_kg" type="number" step="10" value="${S.grapes_kg}"></div>
     <div class="f"><label>Обем на съдовете, л</label><input id="s_vol" type="number" step="10" value="${S.vessel_l}"></div>
     <div class="f"><label>Сорт</label><input id="s_var" value="${esc(S.variety)}"></div>
