@@ -77,6 +77,7 @@ th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--line); }
 .msg.ok { background: rgba(34,160,107,.15); }
 .calc .out { margin-top: 8px; }
 svg text { fill: var(--muted); font-size: 11px; }
+a { color: var(--accent); }
 .f label, .kpi .l { display: flex; align-items: center; gap: 4px; }
 .lt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .info { flex: none; cursor: pointer; color: var(--accent); font-size: .95em; line-height: 1; user-select: none; }
@@ -535,7 +536,49 @@ function viewSettings() {
   <div class="card"><h3>Резервно копие</h3>
   <p><button class="btn sec" onclick="exportJson()">⬇ Изтегли копие</button>
   <label class="btn sec" style="display:inline-block;cursor:pointer">⬆ Зареди копие<input type="file" accept=".json" hidden onchange="importJson(this.files[0])"></label>
-  <button class="btn sec" onclick="if(confirm('Да изчистя ли всички отметки?')){S.done={};save();render()}">↺ Изчисти отметките</button></p></div>`;
+  <button class="btn sec" onclick="if(confirm('Да изчистя ли всички отметки?')){S.done={};save();render()}">↺ Изчисти отметките</button></p></div>
+  ${kazaniCard()}`;
+}
+// ---------- казани around Stara Zagora + what distilling costs with own grapes (research of 2026-10-23)
+const EXCISE_30L = 1.12, EXCISE_FULL = 2.20;   // € per litre of rakia at 40 % vol (first 30 l per household / above)
+const FEE_FULL = 36, FEE_KG = 350;             // ~36 € for a full казан of ~350 kg mash
+function kazaniCard() {
+  const link = (url, text) => `<a href="${url}" target="_blank" rel="noopener">${text}</a>`;
+  const tel = n => `<a href="tel:${n.replace(/\s/g, "")}">${n}</a>`;
+  const { b0 } = logWithSg(), bx = b0 ?? 20, kg = S.grapes_kg;
+  const y = expectedYield(kg, bx, 42), l40 = y.liters * 42 / 40;     // excise is quoted per litre at 40 %
+  const excise = Math.min(l40, 30) * EXCISE_30L + Math.max(l40 - 30, 0) * EXCISE_FULL;
+  const feeLow = Math.min(FEE_FULL, Math.max(10, FEE_FULL * kg / FEE_KG)), feeHigh = FEE_FULL * Math.max(1, Math.ceil(kg * 0.85 / FEE_KG));
+  const eur = x => num(x, 0) + " €";
+  return `<div class="card"><h3>🔥 Казани в Стара Загора и околията</h3>
+  <p class="muted">Онлайн почти няма публикувани места, където варят срещу заплащане – обявите в bazar.bg, alo.bg, olx.bg и grad.bg са предимно за продажба на казани.</p>
+  <b>Места за варене</b><ul>
+    <li><b>Ракиджийница в Партизанин</b>, община Чирпан (~10 км от Чирпан) – на картата, без телефон (${link("http://wikimapia.org/12829785/bg/%D0%A0%D0%B0%D0%BA%D0%B8%D0%B4%D0%B6%D0%B8%D0%B9%D0%BD%D0%B8%D1%86%D0%B0", "Wikimapia")}).</li>
+    <li>Обяви за имоти с казани в <b>с. Овча могила</b> (пункт за изваряване) и <b>с. Климентово</b> (2 казана по 250 л) – там се вари, но обявите не са за услугата.</li></ul>
+  <b>Майстори и продавачи на казани в Стара Загора</b> <span class="muted">(не варят, но вероятно знаят кои казани в района работят)</span><ul>
+    <li><b>Иван Колев</b> – медни казани 150 л – 1 т, ${tel("0889 862 521")} (${link("https://businessaccountbg.com/ivan-kolev/", "сайт")})</li>
+    <li><b>Mobile1.bg</b> – склад в Промишлена зона Запад, ${tel("0882 555 648")}, 09:00–17:00 (${link("https://mobile1.bg/product-category/dom-i-gradina/gradinski-uredi-i-mashini/kazani-za-rakiya-destilatori/", "сайт")})</li>
+    <li><b>„Казани за ракия Стара Загора“</b> – ${tel("0876 584 955")}, издават и документи за регистрация в митница (${link("https://comunicatorbg.com/kazani_sz.html", "сайт")}; телефонът е от търсачка – проверете го)</li></ul>
+  <b>Официален списък</b><ul>
+    <li>Всички легални казани („специализирани малки обекти за дестилиране“) са в регистъра на ${link("https://customs.bg/wps/portal/agency/home/public-registers/customs-zads-registers", "Агенция „Митници“")}. Най-бързо: обадете се на <b>митницата в Стара Загора</b> и поискайте регистрираните обекти в района.</li></ul>
+  <b>Цени</b>
+  <div class="tablewrap"><table>
+    <tr><td>Варене (такса за казана)</td><td>~<b>${FEE_FULL} € за казан с ~${FEE_KG} кг джибри</b> (${link("https://nivabg.com/kolko-shte-struva-da-proizvedesh-domashna-rakiia-prez-2025-godina/", "NivaBG")}, 2024–2025 – питайте за актуалната)</td></tr>
+    <tr><td>Акциз, първите 30 л на домакинство</td><td>~<b>${num(EXCISE_30L, 2)} € на литър</b> при 40 % – половин ставка (${link("https://btvnovinite.bg/bulgaria/domashnata-rakija-se-oblaga-s-akciz-parvite-30-litra-s-namalen-danak-posochvat-ot-nap.html", "bTV")})</td></tr>
+    <tr><td>Акциз над 30 л</td><td>~<b>${num(EXCISE_FULL, 2)} € на литър</b> при 40 %</td></tr></table></div>
+  <p class="muted">Казанджията начислява акциза и трябва да ви даде документ – пазете го. В обществено обсъждане е проект, по който ракията ще може да се държи само от лицето от документа (${link("https://www.strategy.bg/bg/public-consultations/12731/export", "strategy.bg")}) – още не е в сила.</p>
+  <b>Колко излиза с наше грозде</b> <span class="muted">(${num(kg, 0)} кг, ${b0 != null ? "начален Brix " + num(b0) : "~20 °Bx, докато няма замер"} – сменя се с Настройки / Измервания)</span>
+  <div class="tablewrap"><table>
+    <tr><td>Очаквана ракия</td><td><b>~${num(y.liters, 0)} л</b> при 42 %</td></tr>
+    <tr><td>Акциз</td><td>${num(l40, 1)} л при 40 % → <b>~${eur(excise)}</b>${l40 > 30 ? " (над 30 л – пълна ставка за разликата)" : ""}</td></tr>
+    <tr><td>Варене</td><td><b>${feeLow === feeHigh ? eur(feeHigh) : eur(feeLow) + " – " + eur(feeHigh)}</b> – ${FEE_FULL} € е за пълен казан; ако таксуват по килограм, излиза по-евтино</td></tr>
+    <tr><td><b>Общо</b></td><td><b>~${eur(feeLow + excise)}${feeLow === feeHigh ? "" : " – " + eur(feeHigh + excise)}</b>, т.е. ~${num((feeLow + excise) / Math.max(y.liters, 0.1), 1)}${feeLow === feeHigh ? "" : "–" + num((feeHigh + excise) / Math.max(y.liters, 0.1), 1)} € на литър</td></tr></table></div>
+  <p class="muted">Собственото грозде е и условие за намаления акциз.</p>
+  <b>Какво да питате при обаждане</b><ul>
+    <li>свободни дати – сезонът е натоварен, запазете 2–3 седмици напред;</li>
+    <li>обем на казана (колко кг джибри на едно варене) и водна баня ли е (за гъсти джибри);</li>
+    <li>цена на варенето (на казан или на кг) и на акциза;</li>
+    <li>трябва ли да носите дърва и съдове.</li></ul></div>`;
 }
 function saveSettings() {
   const v = id => document.getElementById(id).value;
