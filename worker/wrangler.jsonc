@@ -1,0 +1,6 @@
+{
+  "name": "rakia-api",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-01",
+  "kv_namespaces": [{ "binding": "RAKIA", "id": "f7be10620d894400adc3ce04669afaca" }]
+}

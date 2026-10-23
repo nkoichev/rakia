@@ -92,7 +92,7 @@ svg text { fill: var(--muted); font-size: 11px; }
 <h1 id="title">🍇 Домашна ракия</h1>
 <div class="tabs" id="tabs"></div>
 <div id="view"></div>
-<p class="muted">Данните се пазят само в този браузър. За друго устройство: Настройки → Изтегли копие / Зареди копие.</p>
+<p class="muted" id="sync"></p>
 </main>
 <div id="tip" hidden></div>
 <div id="flash" hidden></div>
@@ -245,15 +245,63 @@ function load() {
   try { return Object.assign(structuredClone(DEFAULT), JSON.parse(localStorage.getItem(KEY)) || {}); }
   catch (e) { return structuredClone(DEFAULT); }
 }
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(S)); flash("✓ Запазено"); }
-  catch (e) { alert("Неуспешен запис: " + e); }
+// Online copy: one JSON document behind a Cloudflare Worker (worker/), guarded by an access code.
+// localStorage is only a cache, so the page opens instantly and survives a dropped connection.
+const API = "https://rakia-api.catmoods.workers.dev/state";
+let CODE = (() => {
+  const m = location.hash.match(/k=([\w-]+)/);
+  try {
+    if (m) { localStorage.setItem(KEY + "_code", m[1]); history.replaceState(null, "", location.pathname); }
+    return m ? m[1] : localStorage.getItem(KEY + "_code");
+  } catch (e) { return m ? m[1] : null; }
+})();
+let dirty = false, lastSync = null;
+async function api(method, body) {
+  const r = await fetch(API, { method, headers: { "X-Key": CODE, "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body) });
+  if (r.status === 401) throw new Error("code");
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
 }
+function cache() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+async function push() {
+  try { await api("PUT", S); dirty = false; lastSync = new Date(); flash("✓ Запазено онлайн"); }
+  catch (e) { dirty = true; flash("⚠ Няма връзка – запазено само тук, ще се изпрати по-късно", true); }
+  syncLine();
+}
+async function pull() {
+  if (!CODE) return;
+  if (dirty) return push();
+  try {
+    const remote = await api("GET");
+    if (remote) { S = Object.assign(structuredClone(DEFAULT), remote); cache(); }
+    else await api("PUT", S);  // first visit: the online copy starts from what this browser has
+    lastSync = new Date(); render();
+  } catch (e) {
+    if (e.message === "code") { forget(); return alert("Грешен код за достъп."); }
+  }
+  syncLine();
+}
+function save() { cache(); push(); }
+function forget() { CODE = null; try { localStorage.removeItem(KEY + "_code"); } catch (e) {} render(); }
+function login() {
+  const c = document.getElementById("code").value.trim();
+  if (!c) return;
+  CODE = c; try { localStorage.setItem(KEY + "_code", c); } catch (e) {}
+  pull();
+}
+function syncLine() {
+  const el = document.getElementById("sync");
+  el.textContent = !CODE ? "" : dirty ? "⚠ Има промени, които още не са изпратени онлайн."
+    : lastSync ? `Данните се пазят онлайн и се виждат от всяко устройство · синхронизирано ${lastSync.toTimeString().slice(0, 5)}` : "Свързване…";
+}
+addEventListener("online", pull);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") pull(); });
 let flashTimer;
-function flash(text) {
+function flash(text, warn) {
   const el = document.getElementById("flash");
-  el.textContent = text; el.hidden = false;
-  clearTimeout(flashTimer); flashTimer = setTimeout(() => el.hidden = true, 1500);
+  el.textContent = text; el.hidden = false; el.style.background = warn ? "var(--late)" : "";
+  clearTimeout(flashTimer); flashTimer = setTimeout(() => el.hidden = true, warn ? 3500 : 1500);
 }
 // The stage opened under the timeline is remembered, so a reload shows the same checklist.
 function pick(id) { picked = id; try { localStorage.setItem(KEY + "_pick", id); } catch (e) {} render(); }
@@ -331,6 +379,13 @@ function render() {
   document.getElementById("tabs").innerHTML = ["Графика", "Измервания", "Калкулатори", "Настройки"]
     .map(t => `<button class="${t === tab ? "on" : ""}" onclick="tab='${t}';render()">${t}</button>`).join("");
   const v = document.getElementById("view");
+  if (!CODE) {
+    v.innerHTML = `<div class="card"><h3>🔑 Код за достъп</h3><p class="muted">Данните се пазят онлайн и се виждат от всяко устройство.
+      Въведете кода веднъж – браузърът го запомня (или отворете линка с кода).</p>
+      <div class="grid"><div class="f"><input id="code" autocomplete="off" onkeydown="if(event.key==='Enter')login()"></div>
+      <div><button class="btn" onclick="login()">Влез</button></div></div></div>`;
+    return;
+  }
   v.innerHTML = tab === "Измервания" ? viewLog() : tab === "Калкулатори" ? viewCalc() : tab === "Настройки" ? viewSettings() : viewTimeline();
   if (tab === "Калкулатори") calc();
   addTips();
@@ -499,7 +554,11 @@ function viewSettings() {
   <p><button class="btn" onclick="saveSettings()">💾 Запази</button></p>
   ${fill > 0.8 ? `<div class="msg warn">Джибрите (~${Math.round(S.grapes_kg * 0.85)} л) пълнят съдовете на ${Math.round(fill * 100)} % – оставете поне 20 % празно място.</div>` : ""}
   </div>
-  <div class="card"><h3>Резервно копие / друго устройство</h3>
+  <div class="card"><h3>Достъп от друго устройство</h3>
+  <p class="muted">Данните са онлайн. На телефона / в друг браузър отворете този линк (съдържа кода) или въведете кода <b>${esc(CODE)}</b>.</p>
+  <p><button class="btn sec" onclick="navigator.clipboard.writeText(location.origin + location.pathname + '#k=' + CODE).then(() => flash('Линкът е копиран'))">🔗 Копирай линка</button>
+  <button class="btn sec" onclick="if(confirm('Да изляза ли от този браузър? Данните остават онлайн.'))forget()">Изход</button></p></div>
+  <div class="card"><h3>Резервно копие</h3>
   <p><button class="btn sec" onclick="exportJson()">⬇ Изтегли копие</button>
   <label class="btn sec" style="display:inline-block;cursor:pointer">⬆ Зареди копие<input type="file" accept=".json" hidden onchange="importJson(this.files[0])"></label>
   <button class="btn sec" onclick="if(confirm('Да изчистя ли всички отметки?')){S.done={};save();render()}">↺ Изчисти отметките</button></p></div>`;
@@ -577,6 +636,8 @@ document.addEventListener("keydown", e => {
 });
 addEventListener("scroll", () => document.getElementById("tip").hidden = true, { passive: true });
 render();
+syncLine();
+pull();
 </script>
 </body>
 </html>
